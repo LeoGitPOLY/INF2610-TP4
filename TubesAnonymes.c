@@ -1,4 +1,11 @@
-// Ajouter les directives d'inclusion nécessaires
+/*
+ * processlab - TubesAnonymes.c
+ *
+ * Ecole polytechnique de Montreal, GIGL, Automne  2022
+ * vos noms, prénoms et matricules
+ * Aurelie Nichols - 2142404
+ * Leonard Pouliot - 2150965
+ */
 #include <stdio.h>
 #include <unistd.h>
 #include <sys/wait.h>
@@ -6,52 +13,65 @@
 #include <sys/wait.h>
 
 int main() {
-    int fd1[2];
-    int fd2[2];
+    int fdRevToRev[2];
+    int fdRevToDiff[2];
     
-    pipe(fd1);
-    pipe(fd2);
+    pipe(fdRevToRev);
+    pipe(fdRevToDiff);
 
     
-    //Creation premier processus fils faisant la premiere commande
+    //Creation premier processus fils faisant rev
     if(fork() == 0){
-        close(fd2[0]); close(fd2[1]);
-        close(fd1[0]);
-        dup2(fd1[1], 1);
-        close(fd1[1]);
+        //Fermer ce qui n'est pas necessaire
+        close(fdRevToDiff[0]); close(fdRevToDiff[1]);
+        close(fdRevToRev[0]);
+        //Connexion entre le premier tube et STDOUT
+        dup2(fdRevToRev[1], 1);
+        close(fdRevToRev[1]);
 
+        //Execution de la commande demandee
         execlp("rev", "rev", "In.txt", NULL);
     }
 
-    //Creation deuxieme processus fils faisant juste rev
+    //Creation deuxieme processus fils faisant rev aussi
     else if(fork() == 0){
-        close(fd1[1]);
-        dup2(fd1[0], 0);
-        close(fd1[0]);
+        //Fermer ce qui n'est pas necessaire
+        close(fdRevToRev[1]);
+        //Connexion entre le premier tube et STDIN
+        dup2(fdRevToRev[0], 0);
+        close(fdRevToRev[0]);
 
-        close(fd2[0]);
-        dup2(fd2[1], 1);
-        close(fd2[1]);
+        close(fdRevToDiff[0]);
+        //Connexion entre le deuxieme tube et STDOUT
+        dup2(fdRevToDiff[1], 1);
+        close(fdRevToDiff[1]);
 
+        //Execution de la commande demandee
         execlp("rev", "rev", NULL);
     }
 
-    //Creation troisieme processus fils faisant derniere 
+    //Creation troisieme processus fils faisant diff
     else if(fork() == 0){
-        close(fd1[0]); close(fd1[1]);
-        close(fd2[1]);
-        dup2(fd2[0], 0);
-        close(fd2[0]);
+        //Fermer ce qui n'est pas necessaire
+        close(fdRevToRev[0]); close(fdRevToRev[1]);
+        close(fdRevToDiff[1]);
+        //Connexion entre le deuxieme tube et STDIN
+        dup2(fdRevToDiff[0], 0);
+        close(fdRevToDiff[0]);
 
+        //Execution de la commande demandee
         execlp("diff", "diff", "-", "In.txt", "-s", NULL);
     }
 
+    //Processus parent
     else{
-        close(fd2[0]);
-        close(fd2[1]);
-        close(fd1[0]);
-        close(fd1[0]);
+        //Fermer ce qui n'est pas necessaire
+        close(fdRevToDiff[0]);
+        close(fdRevToDiff[1]);
+        close(fdRevToRev[0]);
+        close(fdRevToRev[0]);
 
+        //Attente de la fin de ses fils avant de se terminer
         wait(NULL);
     }
 
